@@ -169,6 +169,121 @@ async def skip(ctx):
     else:
         await ctx.send('No hay ninguna canción sonando ahora mismo.')
 
+# --- SISTEMA DE TICKETS ---
+
+# --- NOMBRES DE LOS ROLES (Configurable) ---
+NOMBRE_ROL_SOPORTE = "Soporte"
+NOMBRE_ROL_MODERADOR = "Moderador"
+NOMBRE_ROL_FUNDADOR = "Fundador"
+
+# --- Vista para el botón de cerrar ticket ---
+class CloseTicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label='Cerrar Ticket', style=discord.ButtonStyle.red, emoji='🔒', custom_id='close_ticket_button')
+    async def close_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await interaction.response.send_message("El ticket se cerrará en 5 segundos...", ephemeral=True)
+        await asyncio.sleep(5)
+        await interaction.channel.delete()
+
+# --- Vista para los botones de creación de tickets ---
+class TicketView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    async def crear_ticket(self, interaction: discord.Interaction, tipo_ticket: str):
+        await interaction.response.send_message(f"Creando tu ticket de {tipo_ticket}...", ephemeral=True)
+
+        guild = interaction.guild
+        user = interaction.user
+
+        # --- Obtener los roles desde el servidor ---
+        rol_soporte = discord.utils.get(guild.roles, name=NOMBRE_ROL_SOPORTE)
+        rol_moderador = discord.utils.get(guild.roles, name=NOMBRE_ROL_MODERADOR)
+        rol_fundador = discord.utils.get(guild.roles, name=NOMBRE_ROL_FUNDADOR)
+
+        # Comprobar que los roles básicos existen
+        if not rol_moderador or not rol_fundador:
+            await interaction.followup.send("Error: Faltan los roles 'Moderador' o 'Fundador'. Avisa a un administrador.", ephemeral=True)
+            return
+
+        # --- Construir los permisos dinámicamente ---
+        overwrites = {
+            guild.default_role: discord.PermissionOverwrite(read_messages=False),
+            user: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+            rol_fundador: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        }
+
+        # Añadir permisos según el tipo de ticket
+        if tipo_ticket == "Soporte":
+            if rol_soporte:
+                overwrites[rol_soporte] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+            if rol_moderador:
+                overwrites[rol_moderador] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+        
+        elif tipo_ticket == "Moderación":
+            if rol_moderador:
+                overwrites[rol_moderador] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+        elif tipo_ticket == "Bugs":
+            if rol_moderador:
+                overwrites[rol_moderador] = discord.PermissionOverwrite(read_messages=True, send_messages=True)
+
+        # --- Crear el canal del ticket ---
+        nombre_canal = f"ticket-{user.name}-{tipo_ticket.lower()}"
+        canal_ticket = await guild.create_text_channel(
+            name=nombre_canal,
+            overwrites=overwrites,
+            topic=f"Ticket de {user.name} para {tipo_ticket}. Creado el {discord.utils.utcnow().strftime('%d/%m/%Y %H:%M')}"
+        )
+        
+        embed = discord.Embed(
+            title=f"Ticket de {tipo_ticket} Creado",
+            description=f"Hola {user.mention}, gracias por contactarnos. Un miembro del equipo te atenderá lo antes posible.",
+            color=discord.Color.green()
+        )
+        await canal_ticket.send(embed=embed, view=CloseTicketView())
+
+    # --- Botones ---
+    @discord.ui.button(label='Soporte', style=discord.ButtonStyle.secondary, emoji='🧡', custom_id='ticket_support_button')
+    async def support_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.crear_ticket(interaction, "Soporte")
+
+    @discord.ui.button(label='Moderación', style=discord.ButtonStyle.secondary, emoji='❤️', custom_id='ticket_moderation_button')
+    async def moderation_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.crear_ticket(interaction, "Moderación")
+
+    @discord.ui.button(label='Bugs', style=discord.ButtonStyle.primary, emoji='🐛', custom_id='ticket_bugs_button')
+    async def bugs_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.crear_ticket(interaction, "Bugs")
+
+# --- Comando para configurar el panel de tickets ---
+@bot.command(name='setup_tickets', help='Crea el panel para que los usuarios abran tickets.')
+@commands.has_permissions(administrator=True)
+async def setup_tickets(ctx):
+    embed = discord.Embed(
+        title="Centro de Soporte",
+        description="Si necesitas asistencia, te invitamos a crear un ticket. \n\n"
+                    "Simplemente selecciona entre los botones de debajo de este mensaje para empezar.",
+        color=discord.Color.blue()
+    )
+    embed.add_field(name="🧡 Soporte", value="Dudas y asistencia general.", inline=False)
+    embed.add_field(name="❤️ Moderación", value="Reportes de usuarios.", inline=False)
+    embed.add_field(name="🐛 Bugs", value="Asistencia técnica y reportes de errores.", inline=False)
+    
+    await ctx.send(embed=embed, view=TicketView())
+    await ctx.message.delete()
+
+# --- Modificación del evento on_ready para registrar las vistas ---
+# REEMPLAZA TU ON_READY ACTUAL POR ESTE
+@bot.event
+async def on_ready():
+    print(f'✅ Bot conectado como {bot.user}')
+    # Añadimos estas líneas para que los botones funcionen después de reiniciar
+    bot.add_view(TicketView())
+    bot.add_view(CloseTicketView())
 
 # --- INICIAR EL BOT ---
 # Pega aquí tu token de Discord
