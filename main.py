@@ -320,23 +320,22 @@ class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
         await interaction.response.send_message(embed=embed)
 
 
-# 4. El comando para invocar el Modal
-@bot.command(name='crear_mensaje')
-@commands.has_permissions(administrator=True) # Solo los admins pueden usarlo
-async def crear_mensaje(ctx):
-    # Borramos el mensaje del comando para que quede limpio
-    await ctx.message.delete()
-    # Abrimos el modal para el usuario que ejecutó el comando
-    await ctx.send_modal(MessageModal())
+# Reemplaza tu comando antiguo por este
+@bot.tree.command(name='crear_mensaje', description='Abre un menú para crear un mensaje personalizado.')
+@commands.has_permissions(administrator=True) # El permiso sigue siendo necesario
+async def crear_mensaje(interaction: discord.Interaction):
+    # Ya no necesitamos borrar el mensaje del comando
+    # Abrimos el modal directamente en respuesta a la interacción
+    await interaction.response.send_modal(MessageModal())
 
-# --- Modificación del evento on_ready para registrar las vistas ---
-# REEMPLAZA TU ON_READY ACTUAL POR ESTE
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user}')
-    # Añadimos estas líneas para que los botones funcionen después de reiniciar
+    # Añadimos las vistas persistentes de los tickets
     bot.add_view(TicketView())
     bot.add_view(CloseTicketView())
+    # AÑADIMOS ESTA LÍNEA PARA SINCRONIZAR LOS COMANDOS DE BARRA
+    await bot.tree.sync()
 
 # --- INICIAR EL BOT ---
 # Pega aquí tu token de Discord
