@@ -276,6 +276,59 @@ async def setup_tickets(ctx):
     await ctx.send(embed=embed, view=TicketView())
     await ctx.message.delete()
 
+# --- SISTEMA DE MENSAJES PERSONALIZADOS ---
+
+# 1. Definimos el Modal (la ventana emergente)
+class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
+    # Campo para el título del mensaje
+    titulo = discord.ui.TextInput(
+        label='Título',
+        placeholder='Escribe el título principal aquí...',
+        style=discord.TextStyle.short,
+        required=True
+    )
+
+    # Campo para el texto principal (descripción)
+    descripcion = discord.ui.TextInput(
+        label='Descripción',
+        placeholder='Escribe el texto principal del mensaje. Puedes usar markdown de Discord (ej. **negrita**, - listas).',
+        style=discord.TextStyle.paragraph,
+        required=True
+    )
+    
+    # Campo para la URL de la imagen (opcional)
+    imagen_url = discord.ui.TextInput(
+        label='URL de la Imagen (Opcional)',
+        placeholder='Pega aquí el enlace directo a una imagen (https://...). Déjalo en blanco si no quieres imagen.',
+        required=False
+    )
+
+    # 2. ¿Qué pasa cuando el usuario pulsa "Enviar"?
+    async def on_submit(self, interaction: discord.Interaction):
+        # Creamos el "embed" (el mensaje con formato)
+        embed = discord.Embed(
+            title=self.titulo.value,
+            description=self.descripcion.value,
+            color=discord.Color.random() # Un color aleatorio para hacerlo vistoso
+        )
+
+        # Si el usuario ha puesto una URL de imagen, la añadimos
+        if self.imagen_url.value:
+            embed.set_image(url=self.imagen_url.value)
+
+        # 3. Enviamos el mensaje al canal
+        await interaction.response.send_message(embed=embed)
+
+
+# 4. El comando para invocar el Modal
+@bot.command(name='crear_mensaje')
+@commands.has_permissions(administrator=True) # Solo los admins pueden usarlo
+async def crear_mensaje(ctx):
+    # Borramos el mensaje del comando para que quede limpio
+    await ctx.message.delete()
+    # Abrimos el modal para el usuario que ejecutó el comando
+    await ctx.send_modal(MessageModal())
+
 # --- Modificación del evento on_ready para registrar las vistas ---
 # REEMPLAZA TU ON_READY ACTUAL POR ESTE
 @bot.event
