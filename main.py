@@ -278,47 +278,45 @@ async def setup_tickets(ctx):
 
 # --- SISTEMA DE MENSAJES PERSONALIZADOS ---
 
-# 1. Definimos el Modal (la ventana emergente)
+# Reemplaza tu clase MessageModal actual por esta
 class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
-    # Campo para el título del mensaje
+    # Los campos de TextInput (titulo, descripcion, etc.) se quedan igual
     titulo = discord.ui.TextInput(
         label='Título',
         placeholder='Escribe el título principal aquí...',
         style=discord.TextStyle.short,
         required=True
     )
-
-    # Campo para el texto principal (descripción)
     descripcion = discord.ui.TextInput(
         label='Descripción',
         placeholder='Escribe el texto principal del mensaje. Puedes usar markdown de Discord (ej. **negrita**, - listas).',
         style=discord.TextStyle.paragraph,
         required=True
     )
-    
-    # Campo para la URL de la imagen (opcional)
     imagen_url = discord.ui.TextInput(
         label='URL de la Imagen (Opcional)',
         placeholder='Pega aquí el enlace directo a una imagen (https://...). Déjalo en blanco si no quieres imagen.',
         required=False
     )
 
-    # 2. ¿Qué pasa cuando el usuario pulsa "Enviar"?
+    # ¿Qué pasa cuando el usuario pulsa "Enviar"? (Función modificada)
     async def on_submit(self, interaction: discord.Interaction):
-        # Creamos el "embed" (el mensaje con formato)
+        # 1. Creamos el embed con los datos del formulario
         embed = discord.Embed(
             title=self.titulo.value,
             description=self.descripcion.value,
-            color=discord.Color.random() # Un color aleatorio para hacerlo vistoso
+            color=discord.Color.black() # CAMBIO 1: Color de la barra a negro
         )
 
         # Si el usuario ha puesto una URL de imagen, la añadimos
         if self.imagen_url.value:
             embed.set_image(url=self.imagen_url.value)
 
-        # 3. Enviamos el mensaje al canal
-        await interaction.response.send_message(embed=embed)
-
+        # CAMBIO 2: Ocultar quién usó el comando
+        # Primero, enviamos una respuesta de confirmación oculta (solo tú la verás)
+        await interaction.response.send_message("Mensaje enviado.", ephemeral=True)
+        # Luego, enviamos el embed como un mensaje normal en el canal
+        await interaction.channel.send(embed=embed)
 
 # Reemplaza tu comando antiguo por este
 @bot.tree.command(name='crear_mensaje', description='Abre un menú para crear un mensaje personalizado.')
