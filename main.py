@@ -278,7 +278,7 @@ async def setup_tickets(ctx):
 
 # --- SISTEMA DE MENSAJES PERSONALIZADOS ---
 
-# Reemplaza tu clase MessageModal actual por esta
+# Reemplaza tu clase MessageModal actual por esta versión mejorada
 class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
     # Los campos de TextInput (titulo, descripcion, etc.) se quedan igual
     titulo = discord.ui.TextInput(
@@ -299,30 +299,26 @@ class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
         required=False
     )
 
-# Reemplaza tu función on_submit actual por esta
-async def on_submit(self, interaction: discord.Interaction):
-    # 1. Creamos el embed con los datos del formulario
-    embed = discord.Embed(
-        title=self.titulo.value,
-        description=self.descripcion.value,
-        color=discord.Color(0x000001) # CORRECCIÓN: Usamos el código hexadecimal del negro
-    )
+    # ¿Qué pasa cuando el usuario pulsa "Enviar"? (Función corregida)
+    async def on_submit(self, interaction: discord.Interaction):
+        # Primero, confirmamos la interacción de forma oculta para que Discord sepa que hemos recibido la orden
+        # y nos dé más tiempo para procesar.
+        await interaction.response.defer(ephemeral=True)
 
-    # Si el usuario ha puesto una URL de imagen, la añadimos
-    if self.imagen_url.value:
-        embed.set_image(url=self.imagen_url.value)
+        # Creamos el embed con los datos del formulario
+        embed = discord.Embed(
+            title=self.titulo.value,
+            description=self.descripcion.value,
+            color=discord.Color(0x000001) # Color negro
+        )
 
-    # 2. Ocultamos quién usó el comando
-    await interaction.response.send_message("Mensaje enviado.", ephemeral=True)
-    await interaction.channel.send(embed=embed)
+        # Si el usuario ha puesto una URL de imagen, la añadimos
+        if self.imagen_url.value:
+            embed.set_image(url=self.imagen_url.value)
 
-# Reemplaza tu comando antiguo por este
-@bot.tree.command(name='crear_mensaje', description='Abre un menú para crear un mensaje personalizado.')
-@commands.has_permissions(administrator=True) # El permiso sigue siendo necesario
-async def crear_mensaje(interaction: discord.Interaction):
-    # Ya no necesitamos borrar el mensaje del comando
-    # Abrimos el modal directamente en respuesta a la interacción
-    await interaction.response.send_modal(MessageModal())
+        # Finalmente, enviamos el mensaje como un 'follow-up' al canal.
+        # Esto es más fiable y evita el error "Algo ha fallado".
+        await interaction.followup.send(embed=embed)
 
 @bot.event
 async def on_ready():
