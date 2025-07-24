@@ -278,9 +278,8 @@ async def setup_tickets(ctx):
 
 # --- SISTEMA DE MENSAJES PERSONALIZADOS ---
 
-# Reemplaza tu clase MessageModal actual por esta versión mejorada
+# Modal (ventana emergente) para crear mensajes personalizados
 class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
-    # Los campos de TextInput (titulo, descripcion, etc.) se quedan igual
     titulo = discord.ui.TextInput(
         label='Título',
         placeholder='Escribe el título principal aquí...',
@@ -299,10 +298,8 @@ class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
         required=False
     )
 
-    # ¿Qué pasa cuando el usuario pulsa "Enviar"? (Función corregida)
     async def on_submit(self, interaction: discord.Interaction):
-        # Primero, confirmamos la interacción de forma oculta para que Discord sepa que hemos recibido la orden
-        # y nos dé más tiempo para procesar.
+        # Primero, confirmamos la interacción de forma oculta
         await interaction.response.defer(ephemeral=True)
 
         # Creamos el embed con los datos del formulario
@@ -316,17 +313,23 @@ class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
         if self.imagen_url.value:
             embed.set_image(url=self.imagen_url.value)
 
-        # Finalmente, enviamos el mensaje como un 'follow-up' al canal.
-        # Esto es más fiable y evita el error "Algo ha fallado".
+        # Finalmente, enviamos el mensaje como un 'follow-up' al canal
         await interaction.followup.send(embed=embed)
+
+
+# Comando de barra diagonal (/) para invocar el Modal
+@bot.tree.command(name='crear_mensaje', description='Abre un menú para crear un mensaje personalizado.')
+@commands.has_permissions(administrator=True)
+async def crear_mensaje(interaction: discord.Interaction):
+    await interaction.response.send_modal(MessageModal())
 
 @bot.event
 async def on_ready():
     print(f'✅ Bot conectado como {bot.user}')
-    # Añadimos las vistas persistentes de los tickets
+    # Registrar Vistas persistentes para que los botones de los tickets sigan funcionando
     bot.add_view(TicketView())
     bot.add_view(CloseTicketView())
-    # AÑADIMOS ESTA LÍNEA PARA SINCRONIZAR LOS COMANDOS DE BARRA
+    # Sincronizar los comandos de barra diagonal (/) como /crear_mensaje
     await bot.tree.sync()
 
 # --- INICIAR EL BOT ---
