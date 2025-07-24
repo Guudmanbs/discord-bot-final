@@ -299,24 +299,22 @@ class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
         required=False
     )
 
-    # ¿Qué pasa cuando el usuario pulsa "Enviar"? (Función modificada)
-    async def on_submit(self, interaction: discord.Interaction):
-        # 1. Creamos el embed con los datos del formulario
-        embed = discord.Embed(
-            title=self.titulo.value,
-            description=self.descripcion.value,
-            color=discord.Color.black() # CAMBIO 1: Color de la barra a negro
-        )
+# Reemplaza tu función on_submit actual por esta
+async def on_submit(self, interaction: discord.Interaction):
+    # 1. Creamos el embed con los datos del formulario
+    embed = discord.Embed(
+        title=self.titulo.value,
+        description=self.descripcion.value,
+        color=discord.Color(0x000001) # CORRECCIÓN: Usamos el código hexadecimal del negro
+    )
 
-        # Si el usuario ha puesto una URL de imagen, la añadimos
-        if self.imagen_url.value:
-            embed.set_image(url=self.imagen_url.value)
+    # Si el usuario ha puesto una URL de imagen, la añadimos
+    if self.imagen_url.value:
+        embed.set_image(url=self.imagen_url.value)
 
-        # CAMBIO 2: Ocultar quién usó el comando
-        # Primero, enviamos una respuesta de confirmación oculta (solo tú la verás)
-        await interaction.response.send_message("Mensaje enviado.", ephemeral=True)
-        # Luego, enviamos el embed como un mensaje normal en el canal
-        await interaction.channel.send(embed=embed)
+    # 2. Ocultamos quién usó el comando
+    await interaction.response.send_message("Mensaje enviado.", ephemeral=True)
+    await interaction.channel.send(embed=embed)
 
 # Reemplaza tu comando antiguo por este
 @bot.tree.command(name='crear_mensaje', description='Abre un menú para crear un mensaje personalizado.')
