@@ -74,7 +74,7 @@ async def on_member_join(member):
     if role is not None:
         await member.add_roles(role)
     """TU CÓDIGO DE BIENVENIDA CON IMAGEN (¡Ya integrado!)"""
-    channel = discord.utils.get(member.guild.text_channels, name='bienvenida')
+    channel = discord.utils.get(member.guild.text_channels, name='⌈🛬⌉᲼bienvenida')
     if channel is None:
         return
 
