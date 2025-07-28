@@ -7,6 +7,7 @@ import asyncio
 from PIL import Image, ImageDraw, ImageFont
 import requests
 import io
+from collections import defaultdict
 
 # --- CONFIGURACIÓN INICIAL DEL BOT ---
 # Define los intents (permisos) que tu bot necesita
@@ -29,6 +30,11 @@ opciones_ydl = {
     'default_search': 'auto',
     'source_address': '0.0.0.0'
 }
+
+# --- VARIABLES GLOBALES PARA ANTI-SPAM ---
+anti_spam = defaultdict(list)
+spam_threshold = 5  # Número de mensajes para ser considerado spam
+spam_time_window = 10  # En segundos
 
 # --- FUNCIONES AUXILIARES DE MÚSICA ---
 def buscar_video(query):
@@ -56,7 +62,6 @@ def reproducir_siguiente(ctx):
         voice_client.play(discord.FFmpegPCMAudio(siguiente_cancion['url'], **opciones_ffmpeg), after=lambda e: reproducir_siguiente(ctx))
         
         # Envía un mensaje con la canción que está sonando
-        # ESTA LÍNEA DEBE ESTAR ALINEADA CON LA ANTERIOR
         asyncio.run_coroutine_threadsafe(ctx.send(f'▶️ Ahora suena: **{siguiente_cancion["title"]}**'), bot.loop)
 
 # --- EVENTOS DEL BOT ---
@@ -65,6 +70,11 @@ def reproducir_siguiente(ctx):
 async def on_ready():
     """Se dispara cuando el bot está listo y conectado."""
     print(f'✅ Bot conectado como {bot.user}')
+    # Registrar Vistas persistentes para que los botones de los tickets sigan funcionando
+    bot.add_view(TicketView())
+    bot.add_view(CloseTicketView())
+    # Sincronizar los comandos de barra diagonal (/) como /crear_mensaje
+    await bot.tree.sync()
 
 @bot.event
 async def on_member_join(member):
@@ -102,6 +112,29 @@ async def on_member_join(member):
     except Exception as e:
         print(f"Ocurrió un error al crear la imagen de bienvenida: {e}")
 
+@bot.event
+async def on_message(message):
+    """Se dispara cada vez que se envía un mensaje."""
+    if message.author.bot:
+        return
+
+    # --- SISTEMA ANTI-SPAM ---
+    now = message.created_at.timestamp()
+    anti_spam[message.author.id].append(now)
+    
+    # Eliminar timestamps antiguos
+    anti_spam[message.author.id] = [t for t in anti_spam[message.author.id] if now - t < spam_time_window]
+
+    if len(anti_spam[message.author.id]) > spam_threshold:
+        try:
+            await message.channel.send(f'{message.author.mention}, por favor, no hagas spam.', delete_after=5)
+            # Opcional: eliminar los mensajes de spam
+            await message.channel.purge(limit=spam_threshold, check=lambda m: m.author == message.author)
+        except discord.Forbidden:
+            pass  # El bot no tiene permisos para borrar mensajes
+
+    await bot.process_commands(message)
+
 # --- COMANDOS DE MODERACIÓN (¡Ya integrados!) ---
 
 @bot.command(name='kick', help='Expulsa a un miembro del servidor.')
@@ -116,6 +149,23 @@ async def ban(ctx, member: discord.Member, *, reason: str = "No se especificó u
     await member.ban(reason=reason)
     await ctx.send(f'🚫 **{member.display_name}** ha sido baneado permanentemente. Razón: {reason}')
 
+@bot.command(name='clean', help='Borra todos los mensajes de un canal.')
+@commands.has_any_role("Moderador", "Fundador")
+async def clean(ctx):
+    """Borra todos los mensajes del canal donde se usa el comando."""
+    await ctx.send("Limpiando el canal...")
+    await asyncio.sleep(2)
+    await ctx.channel.purge()
+    await ctx.send("✅ ¡Canal limpiado!", delete_after=5)
+
+# --- COMANDOS DE INFORMACIÓN ---
+@bot.command(name='ip', help='Muestra la IP del servidor.')
+async def ip(ctx):
+    if ctx.channel.name == '⌈❗⌉᲼comandos':
+        await ctx.send('La IP es **168.119.88.170:50870**')
+    else:
+        await ctx.send('Este comando solo se puede usar en el canal `⌈❗⌉᲼comandos`.', delete_after=10)
+        await ctx.message.delete()
 # --- COMANDOS DE MÚSICA ---
 
 @bot.command(name='join', help='El bot se une a tu canal de voz.')
@@ -323,14 +373,6 @@ class MessageModal(discord.ui.Modal, title='Crear Mensaje Personalizado'):
 async def crear_mensaje(interaction: discord.Interaction):
     await interaction.response.send_modal(MessageModal())
 
-@bot.event
-async def on_ready():
-    print(f'✅ Bot conectado como {bot.user}')
-    # Registrar Vistas persistentes para que los botones de los tickets sigan funcionando
-    bot.add_view(TicketView())
-    bot.add_view(CloseTicketView())
-    # Sincronizar los comandos de barra diagonal (/) como /crear_mensaje
-    await bot.tree.sync()
 
 # --- INICIAR EL BOT ---
 # Pega aquí tu token de Discord
